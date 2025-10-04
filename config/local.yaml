@@ -7,7 +7,7 @@ server:
   shutdown-timeout: "10s"
   migration: "internal/subscription/migration"
 db:
-  host: "localhost"
+  host: "db"
   port: 5432
   db-name: "selectel"
   db-user: "selectel"

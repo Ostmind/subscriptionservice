@@ -9,17 +9,12 @@ services:
     ports:
       - "8080:8080"
     environment:
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: selectel
-      DB_PASSWORD: selectel
-      DB_NAME: selectel
-      DB_DSN: postgres://postgres:yourpassword@db:5432/subscription_db?sslmode=disable
       CONFIG_PATH: /app/config/local.yaml
     volumes:
       - ./config:/app/config:ro
     depends_on:
       - db
+      - migrator
 
   migrator:
     build:
@@ -28,7 +23,6 @@ services:
     container_name: migrator
     command: up
     environment:
-      DB_DSN: postgres://selectel:selectel@db:5432/selectel?sslmode=disable
       CONFIG_PATH: /app/config/local.yaml
     volumes:
       - ./config:/app/config:ro
