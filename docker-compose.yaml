@@ -1,0 +1,48 @@
+version: "3.8"
+
+services:
+  subscriptionservice:
+    build:
+      context: .
+      dockerfile: Dockerfile.subscriptionservice
+    container_name: subscriptionservice
+    ports:
+      - "8080:8080"
+    environment:
+      CONFIG_PATH: /app/config/local.yaml
+    volumes:
+      - ./config:/app/config:ro
+    depends_on:
+      - db
+      - migrator
+
+  migrator:
+    build:
+      context: .
+      dockerfile: Dockerfile.migrator
+    container_name: migrator
+    command: up
+    environment:
+      CONFIG_PATH: /app/config/local.yaml
+    volumes:
+      - ./config:/app/config:ro
+      - ./internal/subscription/migration:/app/internal/subscription/migration:ro
+    depends_on:
+      - db
+    restart: "no"
+
+  db:
+    image: postgres:15
+    container_name: subscription_db
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: selectel
+      POSTGRES_PASSWORD: selectel
+      POSTGRES_DB: selectel
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

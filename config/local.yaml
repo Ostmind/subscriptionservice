@@ -1,0 +1,15 @@
+env: "local"
+server:
+  host: "0.0.0.0"
+  port: 8080
+  read-timeout: "5s"
+  write-timeout: "5s"
+  shutdown-timeout: "10s"
+  migration: "/app/internal/subscription/migration"
+db:
+  host: "db"
+  port: 5432
+  db-name: "selectel"
+  db-user: "selectel"
+  db-password: "selectel"
+  db-ssl-mode: "disable"
