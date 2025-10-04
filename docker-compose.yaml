@@ -1,0 +1,46 @@
+version: "3.8"
+
+services:
+  subscriptionservice:
+    build:
+      context: .
+      dockerfile: Dockerfile.subscriptionservice  # Укажите путь к Dockerfile для вашего сервиса
+    container_name: subscriptionservice
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: selectel
+      DB_PASSWORD: selectel
+      DB_NAME: selectel
+    depends_on:
+      - db
+
+  migrator:
+    build:
+      context: .
+      dockerfile: Dockerfile.migrator  # Укажите путь к Dockerfile для мигратора, либо можно сделать отдельный Dockerfile
+    container_name: migrator
+    command: up  # например команда для запуска миграций
+    environment:
+      DB_DSN: postgres://selectel:selectel@db:5432/selectel?sslmode=disable
+    depends_on:
+      - db
+    restart: "no"
+
+  db:
+    image: postgres:15
+    container_name: subscription_db
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: selectel
+      POSTGRES_PASSWORD: selectel
+      POSTGRES_DB: selectel
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
