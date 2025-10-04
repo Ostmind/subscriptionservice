@@ -309,9 +309,9 @@ const docTemplate = `{
                         "type": "string"
                     },
                     "example": [
-                        "[Netflix",
+                        "Netflix",
                         "Yandex Plus",
-                        "Spotify]"
+                        "Spotify"
                     ]
                 },
                 "start_date": {

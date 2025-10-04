@@ -31,10 +31,10 @@ func New(logger *slog.Logger, cfg *config.AppConfig) (*App, error) {
 	}, nil
 }
 
-func (a App) Run(serverPort int) {
+func (a App) Run(serverHost string, serverPort int) {
 	a.logger.Info("Starting app...")
 
-	a.server.Run(serverPort)
+	a.server.Run(serverHost, serverPort)
 }
 
 func (a App) Stop(ctx context.Context) {

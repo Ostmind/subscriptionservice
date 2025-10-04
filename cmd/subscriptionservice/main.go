@@ -40,7 +40,7 @@ func main() {
 		log.Fatal("No App cannot start server", slog.String("err", err.Error()))
 	}
 
-	go app.Run(cfg.Srv.Port)
+	go app.Run(cfg.Srv.Host, cfg.Srv.Port)
 
 	stopChan := make(chan os.Signal, 1)
 	signal.Notify(stopChan,

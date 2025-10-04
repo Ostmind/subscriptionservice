@@ -34,9 +34,9 @@ definitions:
         type: string
       service_name:
         example:
-        - '[Netflix'
+        - Netflix
         - Yandex Plus
-        - Spotify]
+        - Spotify
         items:
           type: string
         type: array

@@ -41,10 +41,10 @@ func New(db *postgres.Storage, logger *slog.Logger) *Server {
 		storage: db,
 	}
 }
-func (s Server) Run(serverPort int) {
+func (s Server) Run(serverHost string, serverPort int) {
 	s.logger.Info("Server is running on: localhost", "Port", serverPort)
 
-	if err := s.server.Start(fmt.Sprintf("localhost:%d", serverPort)); err != nil {
+	if err := s.server.Start(fmt.Sprintf("%s:%d", serverHost, serverPort)); err != nil {
 		if !errors.Is(err, http.ErrServerClosed) {
 			s.logger.Error("Server starting error: %v", slog.Any("error_details", err))
 		}
