@@ -4,7 +4,7 @@ services:
   subscriptionservice:
     build:
       context: .
-      dockerfile: Dockerfile.subscriptionservice  # Укажите путь к Dockerfile для вашего сервиса
+      dockerfile: Dockerfile.subscriptionservice
     container_name: subscriptionservice
     ports:
       - "8080:8080"
@@ -14,17 +14,25 @@ services:
       DB_USER: selectel
       DB_PASSWORD: selectel
       DB_NAME: selectel
+      DB_DSN: postgres://postgres:yourpassword@db:5432/subscription_db?sslmode=disable
+      CONFIG_PATH: /app/config/local.yaml
+    volumes:
+      - ./config:/app/config:ro
     depends_on:
       - db
 
   migrator:
     build:
       context: .
-      dockerfile: Dockerfile.migrator  # Укажите путь к Dockerfile для мигратора, либо можно сделать отдельный Dockerfile
+      dockerfile: Dockerfile.migrator
     container_name: migrator
-    command: up  # например команда для запуска миграций
+    command: up
     environment:
       DB_DSN: postgres://selectel:selectel@db:5432/selectel?sslmode=disable
+      CONFIG_PATH: /app/config/local.yaml
+    volumes:
+      - ./config:/app/config:ro
+      - ./internal/subscription/migration:/app/internal/subscription/migration:ro
     depends_on:
       - db
     restart: "no"
