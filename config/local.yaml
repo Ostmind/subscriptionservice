@@ -1,0 +1,15 @@
+env: "local"
+server:
+  host: "localhost"
+  port: 8080
+  read-timeout: "5s"
+  write-timeout: "5s"
+  shutdown-timeout: "10s"
+  migration: "internal/subscription/migration"
+db:
+  host: "localhost"
+  port: 5432
+  db-name: "selectel"
+  db-user: "selectel"
+  db-password: "selectel"
+  db-ssl-mode: "disable"
