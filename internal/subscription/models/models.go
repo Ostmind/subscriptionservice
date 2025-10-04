@@ -13,21 +13,21 @@ type SubscriptionListDB struct {
 }
 
 type SubscriptionListDTO struct {
-	StartDate   pgtype.Date
-	Price       int
-	ServiceName string
+	StartDate   pgtype.Date `json:"start_date"   example:"09-2025"`
+	Price       int         `json:"price"        example:"400"`
+	ServiceName string      `json:"service_name" example:"Netflix"`
 }
 
 type SubscriptionListJSON struct {
-	UserID      uuid.UUID `json:"user_id"`
-	StartDate   string    `json:"start_date"`
-	Price       int       `json:"price"`
-	ServiceName string    `json:"service_name"`
+	UserID      uuid.UUID `json:"user_id"      example:"60601fee-2bf1-4721-ae6f-7636e79a0cba"`
+	StartDate   string    `json:"start_date"   example:"09-2025"`
+	Price       int       `json:"price"        example:"400"`
+	ServiceName string    `json:"service_name" example:"Netflix"`
 }
 
 type SubscriptionListToCostJSON struct {
-	UserID      uuid.UUID `json:"user_id"`
-	StartDate   string    `json:"start_date"`
-	EndDate     string    `json:"end_date"`
-	ServiceName []string  `json:"service_name"`
+	UserID      uuid.UUID `json:"user_id"      example:"60601fee-2bf1-4721-ae6f-7636e79a0cba"`
+	StartDate   string    `json:"start_date"   example:"09-2025"`
+	EndDate     string    `json:"end_date"     example:"12-2025"`
+	ServiceName []string  `json:"service_name" example:"[Netflix,Yandex Plus,Spotify]"`
 }

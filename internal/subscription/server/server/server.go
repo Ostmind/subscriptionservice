@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	_ "github.com/Ostmind/subscriptionservice/docs"
 	"github.com/Ostmind/subscriptionservice/internal/storage/postgres"
 	"github.com/Ostmind/subscriptionservice/internal/subscription/server/middleware"
+	echoSwagger "github.com/swaggo/echo-swagger"
 	"log/slog"
 	"net/http"
 
@@ -30,6 +32,8 @@ func New(db *postgres.Storage, logger *slog.Logger) *Server {
 	server.DELETE("subscription", subController.DeleteSubscription)
 
 	server.GET("subscription/total-price", subController.GetTotalPeriodCostByDatesAndServiceName)
+
+	server.GET("/swagger/*", echoSwagger.WrapHandler)
 
 	return &Server{
 		logger:  logger,

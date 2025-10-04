@@ -12,6 +12,22 @@ import (
 	"syscall"
 )
 
+// @title Subscription Service API
+// @version 1.0
+// @description API для сервиса подписок
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.url http://www.swagger.io/support
+// @contact.email support@swagger.io
+
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
+
+// @host localhost:8080
+// @BasePath /
+
+// @schemes http https
 func main() {
 	cfg := config.MustNew()
 
