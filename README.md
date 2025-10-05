@@ -33,13 +33,12 @@ http://localhost:8080/swagger/index.html
 Быстрый старт
 
 Запуск через Docker Compose
-
-bash
+```bash
 git clone https://github.com/Ostmind/subscriptionservice.git
 cd subscriptionservice
-git checkout feature
 
 docker-compose up --build
+```
 
 Эта команда запустит три сервиса:
 
@@ -68,24 +67,27 @@ http://localhost:8080/subscription/users
 Разработка
 
 Сборка сервиса:
-
+```bash
 bash
 go build -o subscriptionservice ./cmd/subscriptionservice
-
+```
 Запуск миграций:
 
+```bash
 bash
 docker-compose run migrator up
+```
 Локальный запуск с кастомной конфигурацией:
 
-bash
+```bash
 CONFIG_PATH=./config/local.yaml go run ./cmd/subscriptionservice
-
+```
 Тестирование
 
 Модульные тесты находятся в пакете internal.
 
 Запуск тестов:
-
+```bash
 bash
 go test ./...
+```
