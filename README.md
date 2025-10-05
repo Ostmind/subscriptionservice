@@ -26,18 +26,21 @@ Swagger документация
 
 В проекте настроен Swagger UI, который предоставляет удобный веб-интерфейс для просмотра и тестирования API. Интерфейс доступен по адресу:
 
-text
-http://localhost:8080/swagger/index.html
+http://localhost:8080/swagger/index.html 
+
 Использование Swagger позволяет легко ознакомиться с доступными эндпоинтами, их параметрами и ответами, а также тестировать их в браузере, что значительно облегчает взаимодействие с сервисом.
 
 Быстрый старт
+
 Запуск через Docker Compose
+
 bash
 git clone https://github.com/Ostmind/subscriptionservice.git
 cd subscriptionservice
 git checkout feature
 
 docker-compose up --build
+
 Эта команда запустит три сервиса:
 
 subscriptionservice — backend API сервис на порту 8080
@@ -47,6 +50,7 @@ migrator — сервис миграций базы данных при стар
 db — контейнер с PostgreSQL
 
 Конфигурация
+
 Сервис принимает настройки из YAML-файлов, расположенных в каталоге ./config/. Важные параметры:
 
 Учетные данные и настройки подключения к базе данных
@@ -56,15 +60,18 @@ db — контейнер с PostgreSQL
 Параметры логирования и прочее
 
 Доступ к сервису
+
 После запуска сервис доступен по адресу:
 
-text
 http://localhost:8080/subscription/users
+
 Разработка
+
 Сборка сервиса:
 
 bash
 go build -o subscriptionservice ./cmd/subscriptionservice
+
 Запуск миграций:
 
 bash
@@ -73,8 +80,10 @@ docker-compose run migrator up
 
 bash
 CONFIG_PATH=./config/local.yaml go run ./cmd/subscriptionservice
+
 Тестирование
-Модульные и интеграционные тесты находятся в пакете internal.
+
+Модульные тесты находятся в пакете internal.
 
 Запуск тестов:
 
