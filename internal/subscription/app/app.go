@@ -13,7 +13,6 @@ type App struct {
 	server *srv.Server
 	logger *slog.Logger
 	db     *postgres.Storage
-	cfg    *config.AppConfig
 }
 
 func New(logger *slog.Logger, cfg *config.AppConfig) (*App, error) {

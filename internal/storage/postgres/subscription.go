@@ -45,6 +45,9 @@ func (store *Storage) PostSubscription(ctx context.Context, sub models.Subscript
 					 VALUES($1,$2,$3,$4);`
 
 	startDateDB, err := time.Parse("02-2006", sub.StartDate)
+	if err != nil {
+		return fmt.Errorf("error adding to DB %w", err)
+	}
 
 	result, err := store.DB.Exec(ctx, sqlStatement, sub.UserID, startDateDB, sub.Price, sub.ServiceName)
 	if err != nil {

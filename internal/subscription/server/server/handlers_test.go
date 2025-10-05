@@ -27,89 +27,83 @@ func TestGetSubscriptionListByUserID(t *testing.T) {
 
 	userID := uuid.MustParse("d4ae2ec1-3673-45c8-b823-7b28c99baff0")
 
-	t.Run("Success", func(t *testing.T) {
-		mockManager := mock_server.NewMocksubscriptionManager(ctrl)
+	tests := []struct {
+		name       string
+		mockSetup  func(m *mock_server.MocksubscriptionManager)
+		wantStatus int
+	}{
+		{
+			name: "Success",
+			mockSetup: func(m *mock_server.MocksubscriptionManager) {
+				m.EXPECT().
+					GetSubscriptionListByUserID(gomock.Any(), userID).
+					Return([]models.SubscriptionListDB{
+						{
+							StartDate: func() pgtype.Date {
+								var d pgtype.Date
+								d.Time = time.Date(2023, 9, 0, 0, 0, 0, 0, time.UTC)
+								d.Valid = true
+								return d
+							}(),
+							Price:       100,
+							ServiceName: "Spotify",
+						},
+						{
+							StartDate: func() pgtype.Date {
+								var d pgtype.Date
+								d.Time = time.Date(2023, 10, 0, 0, 0, 0, 0, time.UTC)
+								d.Valid = true
+								return d
+							}(),
+							Price:       200,
+							ServiceName: "Netflix",
+						},
+					}, nil)
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name: "ErrNotFound",
+			mockSetup: func(m *mock_server.MocksubscriptionManager) {
+				m.EXPECT().
+					GetSubscriptionListByUserID(gomock.Any(), userID).
+					Return(nil, models.ErrNotFound)
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name: "InternalServerError",
+			mockSetup: func(m *mock_server.MocksubscriptionManager) {
+				m.EXPECT().
+					GetSubscriptionListByUserID(gomock.Any(), userID).
+					Return(nil, errors.New("db error"))
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
 
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		req.AddCookie(&http.Cookie{Name: "userId", Value: userID.String()})
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-		mockManager.EXPECT().
-			GetSubscriptionListByUserID(gomock.Any(), userID).
-			Return([]models.SubscriptionListDB{
-				{
-					StartDate: func() pgtype.Date {
-						var d pgtype.Date
-						d.Time = time.Date(2023, 9, 0, 0, 0, 0, 0, time.UTC)
-						d.Valid = true
-						return d
-					}(),
-					Price:       100,
-					ServiceName: "Spotify",
-				},
-				{
-					StartDate: func() pgtype.Date {
-						var d pgtype.Date
-						d.Time = time.Date(2023, 10, 0, 0, 0, 0, 0, time.UTC)
-						d.Valid = true
-						return d
-					}(),
-					Price:       200,
-					ServiceName: "Netflix",
-				},
-			}, nil)
+			mockManager := mock_server.NewMocksubscriptionManager(ctrl)
+			tt.mockSetup(mockManager)
 
-		handler := server.NewSubscriptionHandler(mockManager, logger)
-		if err := handler.GetSubscriptionListByUserID(c); err != nil {
-			t.Fatal(err)
-		}
-		if rec.Code != http.StatusOK {
-			t.Errorf("expected %d, got %d", http.StatusOK, rec.Code)
-		}
-	})
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req.AddCookie(&http.Cookie{Name: "userId", Value: userID.String()})
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
 
-	t.Run("ErrNotFound", func(t *testing.T) {
-		mockManager := mock_server.NewMocksubscriptionManager(ctrl)
-
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		req.AddCookie(&http.Cookie{Name: "userId", Value: userID.String()})
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-
-		mockManager.EXPECT().
-			GetSubscriptionListByUserID(gomock.Any(), userID).
-			Return(nil, models.ErrNotFound)
-
-		handler := server.NewSubscriptionHandler(mockManager, logger)
-		if err := handler.GetSubscriptionListByUserID(c); err != nil {
-			t.Fatal(err)
-		}
-		if rec.Code != http.StatusNotFound {
-			t.Errorf("expected %d, got %d", http.StatusNotFound, rec.Code)
-		}
-	})
-
-	t.Run("InternalServerError", func(t *testing.T) {
-		mockManager := mock_server.NewMocksubscriptionManager(ctrl)
-
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		req.AddCookie(&http.Cookie{Name: "userId", Value: userID.String()})
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-
-		mockManager.EXPECT().
-			GetSubscriptionListByUserID(gomock.Any(), userID).
-			Return(nil, errors.New("db error"))
-
-		handler := server.NewSubscriptionHandler(mockManager, logger)
-		if err := handler.GetSubscriptionListByUserID(c); err != nil {
-			t.Fatal(err)
-		}
-		if rec.Code != http.StatusInternalServerError {
-			t.Errorf("expected %d, got %d", http.StatusInternalServerError, rec.Code)
-		}
-	})
+			handler := server.NewSubscriptionHandler(mockManager, logger)
+			if err := handler.GetSubscriptionListByUserID(c); err != nil {
+				t.Fatal(err)
+			}
+			if rec.Code != tt.wantStatus {
+				t.Errorf("expected %d, got %d", tt.wantStatus, rec.Code)
+			}
+		})
+	}
 }
 
 func TestPostSubscription(t *testing.T) {
@@ -119,93 +113,76 @@ func TestPostSubscription(t *testing.T) {
 	logger := slog.Default()
 	e := echo.New()
 
-	t.Run("BadRequest_BadJSON", func(t *testing.T) {
-		mockManager := mock_server.NewMocksubscriptionManager(ctrl)
+	tests := []struct {
+		name       string
+		jsonBody   string
+		mockSetup  func(m *mock_server.MocksubscriptionManager)
+		wantStatus int
+	}{
+		{
+			name:     "BadRequest_BadJSON",
+			jsonBody: `invalid json`,
+			mockSetup: func(m *mock_server.MocksubscriptionManager) {
+				// no mock calls expected
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "ErrUnique",
+			jsonBody: `{"service_name": "Spotify", "price": 100, "start_date": "2023-09"}`,
+			mockSetup: func(m *mock_server.MocksubscriptionManager) {
+				m.EXPECT().
+					PostSubscription(gomock.Any(), gomock.Any()).
+					Return(models.ErrUnique)
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "InternalServerError",
+			jsonBody: `{"service_name": "Spotify", "price": 100, "start_date": "2023-09"}`,
+			mockSetup: func(m *mock_server.MocksubscriptionManager) {
+				m.EXPECT().
+					PostSubscription(gomock.Any(), gomock.Any()).
+					Return(errors.New("db error"))
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:     "Success",
+			jsonBody: `{"service_name": "Spotify", "price": 100, "start_date": "2023-09"}`,
+			mockSetup: func(m *mock_server.MocksubscriptionManager) {
+				m.EXPECT().
+					PostSubscription(gomock.Any(), gomock.Any()).
+					Return(nil)
+			},
+			wantStatus: http.StatusOK,
+		},
+	}
 
-		body := strings.NewReader(`invalid json`)
-		req := httptest.NewRequest(http.MethodPost, "/", body)
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-		handler := server.NewSubscriptionHandler(mockManager, logger)
+			mockManager := mock_server.NewMocksubscriptionManager(ctrl)
+			tt.mockSetup(mockManager)
 
-		if err := handler.PostSubscription(c); err != nil {
-			t.Fatal(err)
-		}
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("expected %d, got %d", http.StatusBadRequest, rec.Code)
-		}
-	})
+			body := strings.NewReader(tt.jsonBody)
+			req := httptest.NewRequest(http.MethodPost, "/", body)
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
 
-	t.Run("ErrUnique", func(t *testing.T) {
-		mockManager := mock_server.NewMocksubscriptionManager(ctrl)
+			handler := server.NewSubscriptionHandler(mockManager, logger)
+			if err := handler.PostSubscription(c); err != nil {
+				t.Fatal(err)
+			}
 
-		jsonBody := `{"service_name": "Spotify", "price": 100, "start_date": "2023-09"}`
-		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(jsonBody))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-
-		mockManager.EXPECT().
-			PostSubscription(gomock.Any(), gomock.Any()).
-			Return(models.ErrUnique)
-
-		handler := server.NewSubscriptionHandler(mockManager, logger)
-
-		if err := handler.PostSubscription(c); err != nil {
-			t.Fatal(err)
-		}
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("expected %d, got %d", http.StatusBadRequest, rec.Code)
-		}
-	})
-
-	t.Run("InternalServerError", func(t *testing.T) {
-		mockManager := mock_server.NewMocksubscriptionManager(ctrl)
-
-		jsonBody := `{"service_name": "Spotify", "price": 100, "start_date": "2023-09"}`
-		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(jsonBody))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-
-		mockManager.EXPECT().
-			PostSubscription(gomock.Any(), gomock.Any()).
-			Return(errors.New("db error"))
-
-		handler := server.NewSubscriptionHandler(mockManager, logger)
-
-		if err := handler.PostSubscription(c); err != nil {
-			t.Fatal(err)
-		}
-		if rec.Code != http.StatusInternalServerError {
-			t.Errorf("expected %d, got %d", http.StatusInternalServerError, rec.Code)
-		}
-	})
-
-	t.Run("Success", func(t *testing.T) {
-		mockManager := mock_server.NewMocksubscriptionManager(ctrl)
-
-		jsonBody := `{"service_name": "Spotify", "price": 100, "start_date": "2023-09"}`
-		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(jsonBody))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-
-		mockManager.EXPECT().
-			PostSubscription(gomock.Any(), gomock.Any()).
-			Return(nil)
-
-		handler := server.NewSubscriptionHandler(mockManager, logger)
-
-		if err := handler.PostSubscription(c); err != nil {
-			t.Fatal(err)
-		}
-		if rec.Code != http.StatusOK {
-			t.Errorf("expected %d, got %d", http.StatusOK, rec.Code)
-		}
-	})
+			if rec.Code != tt.wantStatus {
+				t.Errorf("expected %d, got %d", tt.wantStatus, rec.Code)
+			}
+		})
+	}
 }
 
 func TestDeleteSubscription(t *testing.T) {
@@ -215,81 +192,72 @@ func TestDeleteSubscription(t *testing.T) {
 	logger := slog.Default()
 	e := echo.New()
 
-	t.Run("Success", func(t *testing.T) {
-		mockManager := mock_server.NewMocksubscriptionManager(ctrl)
+	tests := []struct {
+		name       string
+		url        string
+		mockSetup  func(m *mock_server.MocksubscriptionManager)
+		wantStatus int
+	}{
+		{
+			name: "Success",
+			url:  "/?id=123",
+			mockSetup: func(m *mock_server.MocksubscriptionManager) {
+				m.EXPECT().
+					DeleteSubscription(gomock.Any(), 123).
+					Return(nil)
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "BadRequest_InvalidID",
+			url:        "/?id=abc",
+			mockSetup:  func(m *mock_server.MocksubscriptionManager) {}, // no expected mock calls (invalid ID parsing fails before mock)
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name: "NotFound",
+			url:  "/?id=123",
+			mockSetup: func(m *mock_server.MocksubscriptionManager) {
+				m.EXPECT().
+					DeleteSubscription(gomock.Any(), 123).
+					Return(models.ErrNotFound)
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "InternalServerError",
+			url:  "/?id=123",
+			mockSetup: func(m *mock_server.MocksubscriptionManager) {
+				m.EXPECT().
+					DeleteSubscription(gomock.Any(), 123).
+					Return(errors.New("db error"))
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
 
-		req := httptest.NewRequest(http.MethodDelete, "/?id=123", nil)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-		mockManager.EXPECT().
-			DeleteSubscription(gomock.Any(), 123).
-			Return(nil)
+			mockManager := mock_server.NewMocksubscriptionManager(ctrl)
+			tt.mockSetup(mockManager)
 
-		handler := server.NewSubscriptionHandler(mockManager, logger)
-		if err := handler.DeleteSubscription(c); err != nil {
-			t.Fatal(err)
-		}
-		if rec.Code != http.StatusOK {
-			t.Errorf("expected %d, got %d", http.StatusOK, rec.Code)
-		}
-	})
+			req := httptest.NewRequest(http.MethodDelete, tt.url, nil)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
 
-	t.Run("BadRequest_InvalidID", func(t *testing.T) {
-		mockManager := mock_server.NewMocksubscriptionManager(ctrl)
+			handler := server.NewSubscriptionHandler(mockManager, logger)
+			if err := handler.DeleteSubscription(c); err != nil {
+				t.Fatal(err)
+			}
 
-		req := httptest.NewRequest(http.MethodDelete, "/?id=abc", nil) // invalid int
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-
-		handler := server.NewSubscriptionHandler(mockManager, logger)
-		if err := handler.DeleteSubscription(c); err != nil {
-			t.Fatal(err)
-		}
-		if rec.Code != http.StatusInternalServerError {
-			t.Errorf("expected %d, got %d", http.StatusInternalServerError, rec.Code)
-		}
-	})
-
-	t.Run("NotFound", func(t *testing.T) {
-		mockManager := mock_server.NewMocksubscriptionManager(ctrl)
-
-		req := httptest.NewRequest(http.MethodDelete, "/?id=123", nil)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-
-		mockManager.EXPECT().
-			DeleteSubscription(gomock.Any(), 123).
-			Return(models.ErrNotFound)
-
-		handler := server.NewSubscriptionHandler(mockManager, logger)
-		if err := handler.DeleteSubscription(c); err != nil {
-			t.Fatal(err)
-		}
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("expected %d, got %d", http.StatusBadRequest, rec.Code)
-		}
-	})
-
-	t.Run("InternalServerError", func(t *testing.T) {
-		mockManager := mock_server.NewMocksubscriptionManager(ctrl)
-
-		req := httptest.NewRequest(http.MethodDelete, "/?id=123", nil)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-
-		mockManager.EXPECT().
-			DeleteSubscription(gomock.Any(), 123).
-			Return(errors.New("db error"))
-
-		handler := server.NewSubscriptionHandler(mockManager, logger)
-		if err := handler.DeleteSubscription(c); err != nil {
-			t.Fatal(err)
-		}
-		if rec.Code != http.StatusInternalServerError {
-			t.Errorf("expected %d, got %d", http.StatusInternalServerError, rec.Code)
-		}
-	})
+			if rec.Code != tt.wantStatus {
+				t.Errorf("expected %d, got %d", tt.wantStatus, rec.Code)
+			}
+		})
+	}
 }
 
 func TestUpdateSubscription(t *testing.T) {
@@ -299,92 +267,75 @@ func TestUpdateSubscription(t *testing.T) {
 	logger := slog.Default()
 	e := echo.New()
 
-	t.Run("Success", func(t *testing.T) {
-		mockManager := mock_server.NewMocksubscriptionManager(ctrl)
+	tests := []struct {
+		name       string
+		url        string
+		jsonBody   string
+		mockSetup  func(m *mock_server.MocksubscriptionManager)
+		wantStatus int
+	}{
+		{
+			name:     "Success",
+			url:      "/?id=1",
+			jsonBody: `{"service_name": "Spotify", "price": 300, "start_date": "2025-09"}`,
+			mockSetup: func(m *mock_server.MocksubscriptionManager) {
+				m.EXPECT().
+					UpdateSubscription(gomock.Any(), gomock.Any(), 1).
+					Return(nil)
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "BadRequest_InvalidID",
+			url:        "/?id=abc",
+			jsonBody:   `{"service_name": "Spotify", "price": 300, "start_date": "2025-09"}`,
+			mockSetup:  func(m *mock_server.MocksubscriptionManager) {},
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "BadRequest_BindError",
+			url:        "/?id=1",
+			jsonBody:   `invalid json`,
+			mockSetup:  func(m *mock_server.MocksubscriptionManager) {},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "InternalServerError_ManagerError",
+			url:      "/?id=1",
+			jsonBody: `{"service_name": "Spotify", "price": 300, "start_date": "2025-09"}`,
+			mockSetup: func(m *mock_server.MocksubscriptionManager) {
+				m.EXPECT().
+					UpdateSubscription(gomock.Any(), gomock.Any(), 1).
+					Return(errors.New("db error"))
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
 
-		jsonBody := `{"service_name": "Spotify", "price": 300, "start_date": "2025-09"}`
-		req := httptest.NewRequest(http.MethodPut, "/?id=1", strings.NewReader(jsonBody))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-		mockManager.EXPECT().
-			UpdateSubscription(gomock.Any(), gomock.Any(), 1).
-			Return(nil)
+			mockManager := mock_server.NewMocksubscriptionManager(ctrl)
+			tt.mockSetup(mockManager)
 
-		handler := server.NewSubscriptionHandler(mockManager, logger)
+			body := strings.NewReader(tt.jsonBody)
+			req := httptest.NewRequest(http.MethodPut, tt.url, body)
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
 
-		if err := handler.UpdateSubscription(c); err != nil {
-			t.Fatal(err)
-		}
+			handler := server.NewSubscriptionHandler(mockManager, logger)
+			if err := handler.UpdateSubscription(c); err != nil {
+				t.Fatal(err)
+			}
 
-		if rec.Code != http.StatusOK {
-			t.Errorf("expected status %d, got %d", http.StatusOK, rec.Code)
-		}
-	})
-
-	t.Run("BadRequest_InvalidID", func(t *testing.T) {
-		mockManager := mock_server.NewMocksubscriptionManager(ctrl)
-
-		jsonBody := `{"service_name": "Spotify", "price": 300, "start_date": "2025-09"}`
-		req := httptest.NewRequest(http.MethodPut, "/?id=abc", strings.NewReader(jsonBody))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-
-		handler := server.NewSubscriptionHandler(mockManager, logger)
-
-		if err := handler.UpdateSubscription(c); err != nil {
-			t.Fatal(err)
-		}
-
-		if rec.Code != http.StatusInternalServerError {
-			t.Errorf("expected status %d, got %d", http.StatusInternalServerError, rec.Code)
-		}
-	})
-
-	t.Run("BadRequest_BindError", func(t *testing.T) {
-		mockManager := mock_server.NewMocksubscriptionManager(ctrl)
-
-		req := httptest.NewRequest(http.MethodPut, "/?id=1", strings.NewReader(`invalid json`))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-
-		handler := server.NewSubscriptionHandler(mockManager, logger)
-
-		if err := handler.UpdateSubscription(c); err != nil {
-			t.Fatal(err)
-		}
-
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
-		}
-	})
-
-	t.Run("InternalServerError_ManagerError", func(t *testing.T) {
-		mockManager := mock_server.NewMocksubscriptionManager(ctrl)
-
-		jsonBody := `{"service_name": "Spotify", "price": 300, "start_date": "2025-09"}`
-		req := httptest.NewRequest(http.MethodPut, "/?id=1", strings.NewReader(jsonBody))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-
-		mockManager.EXPECT().
-			UpdateSubscription(gomock.Any(), gomock.Any(), 1).
-			Return(errors.New("db error"))
-
-		handler := server.NewSubscriptionHandler(mockManager, logger)
-
-		if err := handler.UpdateSubscription(c); err != nil {
-			t.Fatal(err)
-		}
-
-		if rec.Code != http.StatusInternalServerError {
-			t.Errorf("expected status %d, got %d", http.StatusInternalServerError, rec.Code)
-		}
-	})
+			if rec.Code != tt.wantStatus {
+				t.Errorf("expected %d, got %d", tt.wantStatus, rec.Code)
+			}
+		})
+	}
 }
 
 func TestGetTotalPeriodCostByDatesAndServiceName(t *testing.T) {
@@ -394,76 +345,70 @@ func TestGetTotalPeriodCostByDatesAndServiceName(t *testing.T) {
 	logger := slog.Default()
 	e := echo.New()
 
-	t.Run("Success", func(t *testing.T) {
-		mockManager := mock_server.NewMocksubscriptionManager(ctrl)
+	tests := []struct {
+		name       string
+		jsonBody   string
+		mockSetup  func(m *mock_server.MocksubscriptionManager)
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "Success",
+			jsonBody: `{"user_id":"60601fee-2bf1-4721-ae6f-7636e79a0cba","start_date":"09-2025","end_date":"12-2025","service_name":["Spotify"]}`,
+			mockSetup: func(m *mock_server.MocksubscriptionManager) {
+				m.EXPECT().
+					GetTotalPeriodCostByDatesAndServiceName(gomock.Any(), gomock.Any()).
+					Return(1200, nil)
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `{"result":1200}`,
+		},
+		{
+			name:       "BadRequest_BindError",
+			jsonBody:   `invalid json`,
+			mockSetup:  func(m *mock_server.MocksubscriptionManager) {},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "InternalServerError_ManagerError",
+			jsonBody: `{"user_id":"60601fee-2bf1-4721-ae6f-7636e79a0cba","start_date":"09-2025","end_date":"12-2025","service_name":["Spotify"]}`,
+			mockSetup: func(m *mock_server.MocksubscriptionManager) {
+				m.EXPECT().
+					GetTotalPeriodCostByDatesAndServiceName(gomock.Any(), gomock.Any()).
+					Return(0, errors.New("db error"))
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
 
-		jsonBody := `{"user_id":"60601fee-2bf1-4721-ae6f-7636e79a0cba","start_date":"09-2025","end_date":"12-2025","service_name":["Spotify"]}`
-		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(jsonBody))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-		expectedResult := 1200
+			mockManager := mock_server.NewMocksubscriptionManager(ctrl)
+			tt.mockSetup(mockManager)
 
-		mockManager.EXPECT().
-			GetTotalPeriodCostByDatesAndServiceName(gomock.Any(), gomock.Any()).
-			Return(expectedResult, nil)
+			body := strings.NewReader(tt.jsonBody)
+			req := httptest.NewRequest(http.MethodPost, "/", body)
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
 
-		handler := server.NewSubscriptionHandler(mockManager, logger)
-		if err := handler.GetTotalPeriodCostByDatesAndServiceName(c); err != nil {
-			t.Fatal(err)
-		}
+			handler := server.NewSubscriptionHandler(mockManager, logger)
+			if err := handler.GetTotalPeriodCostByDatesAndServiceName(c); err != nil {
+				t.Fatal(err)
+			}
 
-		if rec.Code != http.StatusOK {
-			t.Errorf("expected status %d, got %d", http.StatusOK, rec.Code)
-		}
+			if rec.Code != tt.wantStatus {
+				t.Errorf("expected status %d, got %d", tt.wantStatus, rec.Code)
+			}
 
-		expectedJSON := `{"result":1200}`
-		if strings.TrimSpace(rec.Body.String()) != expectedJSON {
-			t.Errorf("expected body %s, got %s", expectedJSON, rec.Body.String())
-		}
-	})
-
-	t.Run("BadRequest_BindError", func(t *testing.T) {
-		mockManager := mock_server.NewMocksubscriptionManager(ctrl)
-
-		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`invalid json`))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-
-		handler := server.NewSubscriptionHandler(mockManager, logger)
-
-		if err := handler.GetTotalPeriodCostByDatesAndServiceName(c); err != nil {
-			t.Fatal(err)
-		}
-
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
-		}
-	})
-
-	t.Run("InternalServerError_ManagerError", func(t *testing.T) {
-		mockManager := mock_server.NewMocksubscriptionManager(ctrl)
-
-		jsonBody := `{"user_id":"60601fee-2bf1-4721-ae6f-7636e79a0cba","start_date":"09-2025","end_date":"12-2025","service_name":["Spotify"]}`
-		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(jsonBody))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-
-		mockManager.EXPECT().
-			GetTotalPeriodCostByDatesAndServiceName(gomock.Any(), gomock.Any()).
-			Return(0, errors.New("db error"))
-
-		handler := server.NewSubscriptionHandler(mockManager, logger)
-
-		if err := handler.GetTotalPeriodCostByDatesAndServiceName(c); err != nil {
-			t.Fatal(err)
-		}
-
-		if rec.Code != http.StatusInternalServerError {
-			t.Errorf("expected status %d, got %d", http.StatusInternalServerError, rec.Code)
-		}
-	})
+			if tt.wantBody != "" {
+				if strings.TrimSpace(rec.Body.String()) != tt.wantBody {
+					t.Errorf("expected body %s, got %s", tt.wantBody, rec.Body.String())
+				}
+			}
+		})
+	}
 }
