@@ -66,7 +66,7 @@ db — контейнер с PostgreSQL
 
 После запуска сервис доступен по адресу:
 
-http://localhost:8080/subscription/users
+http://localhost:8080/subscription
 
 **Разработка**
 
